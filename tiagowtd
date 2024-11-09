@@ -1,0 +1,190 @@
+#!/bin/bash
+
+# Author: Tiago Aguiar
+# Data: 08-11-24
+# Descrição: Instlando Docker + Portainer + NGINX
+# Versão 1.0
+
+echo "=========================="
+echo "| Instalando o Docker    |"
+echo "=========================="
+echo "========================================"
+echo "| Atualização e Upgrade do Repositório |"
+echo "========================================"
+
+# Atualizar a lista de atualizações
+apt-get update
+
+# Instalar os aplicativos necessários para instalar Docker
+apt-get install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg-agent \
+    software-properties-common -y
+
+# Adicionar chave GPG do Docker 
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Configurar o repositório:
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+   tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Atualize o apt índice do pacote:
+apt-get update
+
+echo    "=============================="
+echo    "| Instalando o Docker Engine |"
+echo -e "==============================\n"
+
+# 1. Instale o Docker Engine, o containerd e o Docker Compose.
+apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+echo    "---------------------------"
+echo    "| Verificando o Docker... |"
+echo -e "---------------------------\n"
+
+# Verifique o Docker
+docker ps
+
+echo    "----------------------------------------"
+echo    "| Baixando e Instalando Hello World... |"
+echo -e "----------------------------------------\n"
+
+# 2. Verifique se a instalação do Docker Engine foi bem-sucedida executando a hello-world imagem:
+docker run hello-world
+
+echo    "------------------------------------"
+echo    "| Verificando Imagem Hello Word... |"
+echo -e "------------------------------------\n"
+
+docker images
+
+echo    "================================="
+echo    "| Docker Instalado com Sucesso! |"
+echo -e "=================================\n"
+
+echo "----------------------------------------------------------------------"
+
+echo "=================="
+echo "| Etapa 2!       |"
+echo "=================="
+
+echo "================================="
+echo "| Instalando o Portainer!       |"
+echo "================================="
+
+# Criar volume "portainer_data"
+docker volume create portainer_data
+
+echo    "---------------------------------------------------"
+echo    "| Opção 1: Instalar o Portainer na porta :9000... |"
+echo -e "---------------------------------------------------\n"
+
+docker run -d -p 9000:9000 --name portainer --restart always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer -H unix:///var/run/docker.sock
+
+echo "================================"
+echo "| 12 - Acesse o Portainer      |"
+echo -e "=============================\n"
+
+wget -qO - icanhazip.com
+
+variavel=$(wget -qO - icanhazip.com)
+echo -e "......\n"
+
+echo "Acesse no Endereço"
+echo "http://$variavel:9000"
+# echo "http://ip_servidor:9000"
+# echo "login: admin"
+# echo "senha: xxxxxx"
+
+echo "=================="
+echo "| Etapa 3!       |"
+echo -e "================== \n"
+ 
+echo    "================================="
+echo    "| Instalando o Docker Compose!  |"
+echo -e "=================================\n"
+
+# Você deve instalá-lo manualmente, porque também não está nos repositórios oficiais, então fazemos isso no Github
+curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+# Uma vez baixado, damos permissões de execução e o movemos para /usr/bin
+chmod +x docker-compose-linux-x86_64
+
+mv docker-compose-linux-x86_64 /usr/bin/docker-compose
+
+# Instalar o Docker Compose
+apt-get install docker-compose -y
+
+docker-compose --version
+# composer -V
+
+echo "======================================"
+echo "| Instalando o NGINX Proxy Manager!  |"
+echo -e "===================================\n"
+
+# pwd
+cd /root
+mkdir nginx
+cd nginx
+
+# nano docker-compose.yaml
+
+echo "--------------------------------------------------------------------------------------------------------------------------"
+echo "Arquivo do NGINX na porta 80 (HTTP) e 81 (HTTPS) e o Portainer na porta 9000 | arquivo: docker-compose.yaml (Produção)"
+echo "--------------------------------------------------------------------------------------------------------------------------"
+
+cat << EOF > docker-compose.yaml
+version: '3.8'
+services:
+
+  proxy:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - '80:80'   # Porta HTTP Pública
+      - '81:81'   # Porta HTTPS Pública
+      - '443:443' # Porta de Administracao do Nginx Proxy
+      # - '21:21' # FTP, Adicione qualquer outra porta Stream que você queira expor, ex
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      - proxy_manager
+
+networks:
+  proxy_manager:
+    name: proxy_manager
+EOF
+
+# echo "https://nginxproxymanager.com/setup/"
+# echo "Setup Instrutions"
+
+docker ps
+
+# Vamos subir os serviços
+docker-compose up -d
+docker ps
+
+# Verificar Logs
+docker-compose logs -f
+
+echo "================================="
+echo "| 12 - NGINX Proxy Manager      |"
+echo -e "==============================\n"
+
+wget -qO - icanhazip.com
+
+variavel=$(wget -qO - icanhazip.com)
+echo -e "......\n"
+
+echo "Acesse no Endereço"
+echo "http://$variavel:81"
+echo "login: admin@example.com"
+echo "senha: changeme"
